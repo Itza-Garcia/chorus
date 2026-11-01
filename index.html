@@ -1,259 +1,278 @@
-
 <!DOCTYPE html>
 <html lang="en">
     <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <meta http-equiv="X-UA-Compatible" content="ie=edge">
-        <title>WebPd boilerplate</title>
+        <title>Chorus</title>
         <style>
-            #start {
-                display: none;
-                position: fixed;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
+            :root {
+                --bg: #f6f5f2;
+                --panel: #ffffff;
+                --text: #1d1d1f;
+                --muted: #6b6b70;
+                --accent: #2f6fdb;
+                --border: #dddad3;
+                --track: #e7e4dd;
             }
-            #loading {
-                width: 100%;
-                height: 100%;
-                position: fixed;
-                top: 50%;
-                transform: translateY(-50%);
+            @media (prefers-color-scheme: dark) {
+                :root {
+                    --bg: #17181a;
+                    --panel: #222326;
+                    --text: #f1f1f2;
+                    --muted: #a0a0a6;
+                    --accent: #6b9cf0;
+                    --border: #35363a;
+                    --track: #35363a;
+                }
+            }
+            * { box-sizing: border-box; }
+            body {
+                margin: 0;
+                padding: 32px 16px;
+                background: var(--bg);
+                color: var(--text);
+                font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
                 display: flex;
                 justify-content: center;
+            }
+            main { width: 100%; max-width: 520px; }
+            h1 { margin: 0 0 4px; font-size: 1.6rem; }
+            .subtitle { margin: 0 0 24px; color: var(--muted); }
+            .panel {
+                background: var(--panel);
+                border: 1px solid var(--border);
+                border-radius: 12px;
+                padding: 24px;
+            }
+            button {
+                font: inherit;
+                font-weight: 600;
+                border: none;
+                border-radius: 8px;
+                padding: 12px 20px;
+                background: var(--accent);
+                color: #fff;
+                cursor: pointer;
+                width: 100%;
+            }
+            button:disabled { opacity: 0.5; cursor: default; }
+            #controls { display: none; }
+            #play { margin-bottom: 24px; }
+            .param { margin-bottom: 20px; }
+            .param:last-child { margin-bottom: 0; }
+            .param-head {
+                display: flex;
+                justify-content: space-between;
+                align-items: baseline;
+                margin-bottom: 6px;
+            }
+            .param label { font-weight: 600; }
+            .param .hint { font-size: 0.85rem; color: var(--muted); margin-top: 4px; }
+            output {
+                font-variant-numeric: tabular-nums;
+                min-width: 70px;
+                text-align: right;
+            }
+            input[type=range] { width: 100%; accent-color: var(--accent); }
+            .meter {
+                height: 8px;
+                border-radius: 4px;
+                background: var(--track);
+                overflow: hidden;
+            }
+            .meter > div {
+                height: 100%;
+                width: 50%;
+                background: var(--accent);
+                opacity: 0.6;
+            }
+            .switch-row {
+                display: flex;
+                justify-content: space-between;
                 align-items: center;
             }
+            .switch-row input { width: 22px; height: 22px; accent-color: var(--accent); }
+            .divider { border: none; border-top: 1px solid var(--border); margin: 24px 0; }
         </style>
     </head>
     <body>
-        <h1>My Web Page</h1>
-        <div>For more info about usage (how to interact with the patch), you can open this HTML file in a code editor.</div>
-        <button id="start"> Start </button>
-        <div id="loading"> Loading ... </div>
+        <main>
+            <h1>Chorus</h1>
+            <p class="subtitle">A delay whose delay time is swept by an LFO between 38 and 55 ms</p>
+
+            <div class="panel">
+                <button id="start" disabled>Loading…</button>
+
+                <div id="controls">
+                    <button id="play">▶ Play</button>
+
+                    <div class="param switch-row">
+                        <label for="lfoOn">LFO on</label>
+                        <input type="checkbox" id="lfoOn" checked>
+                    </div>
+
+                    <div class="param">
+                        <div class="param-head">
+                            <label for="lfoFreq">LFO frequency</label>
+                            <output id="lfoFreqOut"></output>
+                        </div>
+                        <input type="range" id="lfoFreq">
+                        <div class="hint">How fast the delay time sweeps, 0.5 – 3 Hz</div>
+                    </div>
+
+                    <div class="param">
+                        <div class="param-head">
+                            <span style="font-weight:600">Delay time (moved by the LFO)</span>
+                            <output id="delayOut">–</output>
+                        </div>
+                        <div class="meter"><div id="delayBar"></div></div>
+                        <div class="hint">38 – 55 ms</div>
+                    </div>
+
+                    <hr class="divider">
+
+                    <div class="param">
+                        <div class="param-head">
+                            <label for="feedforward">Feedforward gain</label>
+                            <output id="feedforwardOut"></output>
+                        </div>
+                        <input type="range" id="feedforward">
+                        <div class="hint">Level of the delayed signal, 0 – 1</div>
+                    </div>
+
+                    <div class="param">
+                        <div class="param-head">
+                            <label for="blend">Blend gain</label>
+                            <output id="blendOut"></output>
+                        </div>
+                        <input type="range" id="blend">
+                        <div class="hint">Level of the dry signal, 0 – 1</div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
         <script src="webpd-runtime.js"></script>
         <script>
-            // SUMMARY
-            // 1. WEB PAGE INITIALIZATION
-            // 2. SENDING MESSAGES FROM JAVASCRIPT TO THE PATCH
-            // 3. SENDING MESSAGES FROM THE PATCH TO JAVASCRIPT
+            // ------------- PARAMETERS
+            // Each slider sends its value to a number box inside the Pd patch.
+            // min / max lock the range students see; value is the preset.
+            // scale multiplies the slider value before it reaches the patch.
+            const PARAMS = [
+                { id: 'lfoFreq',     nodeId: 'n_0_18', min: 0.5,  max: 3,   step: 0.05,  value: 1,     scale: 1,   decimals: 2, unit: ' Hz' },
+                // Gains show 0–1 but are scaled by 0.5, so the patch only ever gets 0–0.5.
+                // Dry + delayed can then never exceed full scale (no clipping).
+                { id: 'feedforward', nodeId: 'n_0_27', min: 0,    max: 1,   step: 0.01,  value: 0.8,   scale: 0.5, decimals: 2, unit: '' },
+                { id: 'blend',       nodeId: 'n_0_26', min: 0,    max: 1,   step: 0.01,  value: 0.8,   scale: 0.5, decimals: 2, unit: '' },
+            ]
+            const PLAY_NODE = 'n_0_2'        // bang that plays voice_sample.wav
+            const LFO_TOGGLE_NODE = 'n_0_22' // toggle that starts/stops the LFO
+            const DELAY_NODE = 'n_0_7'       // delay time, written by the LFO (38–55 ms)
+            const DELAY_MIN_MS = 38
+            const DELAY_MAX_MS = 55
 
+            // Note: the maximum delay time is fixed at 5000 ms inside the patch
+            // (delwrite~ buffer), so there is no control for it here.
 
-            // ------------- 1. WEB PAGE INITIALIZATION
-            const loadingDiv = document.querySelector('#loading')
+            // ------------- WEB PAGE INITIALIZATION
             const startButton = document.querySelector('#start')
+            const controls = document.querySelector('#controls')
+            const playButton = document.querySelector('#play')
+            const lfoOn = document.querySelector('#lfoOn')
+            const delayOut = document.querySelector('#delayOut')
+            const delayBar = document.querySelector('#delayBar')
             const audioContext = new AudioContext()
 
             let patch = null
-            let stream = null
             let webpdNode = null
 
-            const initApp = async () => {
-                // Register the worklet
-                await WebPdRuntime.initialize(audioContext)
+            const sendMsgToWebPd = (nodeId, portletId, message) => {
+                if (!webpdNode) return
+                webpdNode.port.postMessage({
+                    type: 'io:messageReceiver',
+                    payload: { nodeId, portletId, message },
+                })
+            }
 
-                // Fetch the patch code
-                response = await fetch('patch.js')
+            const format = (p, v) => Number(v).toFixed(p.decimals) + p.unit
+
+            // Build sliders from PARAMS
+            PARAMS.forEach((p) => {
+                const slider = document.getElementById(p.id)
+                const out = document.getElementById(p.id + 'Out')
+                slider.min = p.min
+                slider.max = p.max
+                slider.step = p.step
+                slider.value = p.value
+                out.textContent = format(p, p.value)
+                slider.addEventListener('input', () => {
+                    // Clamp just in case, so nothing outside the range reaches the patch
+                    const v = Math.min(p.max, Math.max(p.min, parseFloat(slider.value)))
+                    out.textContent = format(p, v)
+                    sendMsgToWebPd(p.nodeId, '0', [v * p.scale])
+                })
+            })
+
+            lfoOn.addEventListener('change', () => {
+                sendMsgToWebPd(LFO_TOGGLE_NODE, '0', [lfoOn.checked ? 1 : 0])
+            })
+
+            // Sends every control's current value to the patch
+            const sendAllParams = () => {
+                PARAMS.forEach((p) => {
+                    const v = parseFloat(document.getElementById(p.id).value)
+                    sendMsgToWebPd(p.nodeId, '0', [v * p.scale])
+                })
+                sendMsgToWebPd(LFO_TOGGLE_NODE, '0', [lfoOn.checked ? 1 : 0])
+            }
+
+            const initApp = async () => {
+                await WebPdRuntime.initialize(audioContext)
+                const response = await fetch('patch.js')
                 patch = await response.text()
 
-                // Comment this if you don't need audio input
-                stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-
-                // Hide loading and show start button
-                loadingDiv.style.display = 'none'
-                startButton.style.display = 'block'
+                startButton.textContent = 'Start audio'
+                startButton.disabled = false
             }
 
             const startApp = async () => {
-                // AudioContext needs to be resumed on click to protects users 
-                // from being spammed with autoplay.
-                // See : https://github.com/WebAudio/web-audio-api/issues/345
                 if (audioContext.state === 'suspended') {
-                    audioContext.resume()
+                    await audioContext.resume()
                 }
 
-                // Setup web audio graph
                 webpdNode = await WebPdRuntime.run(
-                    audioContext, 
-                    patch, 
-                    WebPdRuntime.defaultSettingsForRun(
-                        './patch.js',
-                        // Comment this if you don't need to receive messages from the patch
-                        receiveMsgFromWebPd,
-                    ),
+                    audioContext,
+                    patch,
+                    WebPdRuntime.defaultSettingsForRun('./patch.js', receiveMsgFromWebPd),
                 )
                 webpdNode.connect(audioContext.destination)
 
-                // Comment this if you don't need audio input
-                const sourceNode = audioContext.createMediaStreamSource(stream)
-                sourceNode.connect(webpdNode)
+                // The patch only becomes ready once the first audio block runs,
+                // so wait a moment before sending the presets.
+                setTimeout(sendAllParams, 300)
 
-                // Hide the start button
                 startButton.style.display = 'none'
+                controls.style.display = 'block'
             }
 
             startButton.onclick = startApp
-
-            initApp().
-                then(() => {
-                    console.log('App initialized')
-                })
-
-            
-            // ------------- 2. SENDING MESSAGES FROM JAVASCRIPT TO THE PATCH
-            // Use the function sendMsgToWebPd to send a message from JavaScript to an object inside your patch.
-            // 
-            // Parameters : 
-            // - nodeId: the ID of the object you want to send a message to. 
-            //          This ID is a string that has been assigned by WebPd at compilation.
-            //          You can find below the list of available IDs with hints to help you 
-            //          identify the object you want to interact with.
-            // - portletId : the ID of the object portlet to which the message should be sent. 
-            // - message : the message to send. This must be a list of strings and / or numbers.
-            // 
-            // Examples :
-            // - sending a message to a bang node of ID 'n_0_1' :
-            //          sendMsgToWebPd('n_0_1', '0', ['bang'])
-            // - sending a message to a number object of ID 'n_0_2' :
-            //          sendMsgToWebPd('n_0_2', '0', [123])
-            // 
-            const sendMsgToWebPd = (nodeId, portletId, message) => {
-                webpdNode.port.postMessage({
-                    type: 'io:messageReceiver',
-                    payload: {
-                        nodeId,
-                        portletId,
-                        message,
-                    },
-                })
+            playButton.onclick = () => {
+                // Re-send the control values first so the patch always matches what students see
+                sendAllParams()
+                sendMsgToWebPd(PLAY_NODE, '0', ['bang'])
             }
-            
-            // Here is an index of objects IDs to which you can send messages, with hints so you can find the right ID.
-            // Note that by default only GUI objects (bangs, sliders, etc ...) are available.
-            //  - nodeId "n_0_2" portletId "0"
-            //      * type "bang"
-            //      * position 47 625
-            
-            //  - nodeId "n_0_6" portletId "0"
-            //      * type "floatatom"
-            //      * position 323 732
-            
-            //  - nodeId "n_0_7" portletId "0"
-            //      * type "floatatom"
-            //      * position 320 615
-            
-            //  - nodeId "n_0_18" portletId "0"
-            //      * type "floatatom"
-            //      * position 318 437
-            
-            //  - nodeId "n_0_22" portletId "0"
-            //      * type "tgl"
-            //      * position 365 517
-            
-            //  - nodeId "n_0_24" portletId "0"
-            //      * type "msg"
-            //      * position 366 494
-            
-            //  - nodeId "n_0_25" portletId "0"
-            //      * type "msg"
-            //      * position 367 437
-            
-            //  - nodeId "n_0_26" portletId "0"
-            //      * type "floatatom"
-            //      * position 373 206
-            
-            //  - nodeId "n_0_27" portletId "0"
-            //      * type "floatatom"
-            //      * position 594 497
-            
-            //  - nodeId "n_0_28" portletId "0"
-            //      * type "msg"
-            //      * position 49 683
-            
 
-            // ------------- 3. SENDING MESSAGES FROM THE PATCH TO JAVASCRIPT
-            // Use the function receiveMsgFromWebPd to receive a message from an object inside your patch.
-            // 
-            // Parameters : 
-            // - nodeId: the ID of the object that is sending a message. 
-            //          This ID is a string that has been assigned by WebPd at compilation.
-            //          You can find below the list of available IDs with hints to help you 
-            //          identify the object you want to interact with.
-            // - portletId : the ID of the object portlet that is sending the message.
-            // - message : the message that was sent. It is a list of strings and / or numbers.
+            initApp().then(() => console.log('App initialized'))
+
+            // Messages coming back from the patch: show the LFO-driven delay time
             const receiveMsgFromWebPd = (nodeId, portletId, message) => {
-                if (nodeId === "n_0_2" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_2" portletId "0"\n'
-                        + '	* type "bang"\n'
-                        + '	* position 47 625\n'
-                    )
+                if (nodeId === DELAY_NODE && typeof message[0] === 'number') {
+                    const ms = message[0]
+                    delayOut.textContent = ms.toFixed(2) + ' ms'
+                    delayBar.style.width = Math.min(100, Math.max(0, (ms - DELAY_MIN_MS) / (DELAY_MAX_MS - DELAY_MIN_MS) * 100)) + '%'
                 }
-                if (nodeId === "n_0_6" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_6" portletId "0"\n'
-                        + '	* type "floatatom"\n'
-                        + '	* position 323 732\n'
-                    )
-                }
-                if (nodeId === "n_0_7" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_7" portletId "0"\n'
-                        + '	* type "floatatom"\n'
-                        + '	* position 320 615\n'
-                    )
-                }
-                if (nodeId === "n_0_18" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_18" portletId "0"\n'
-                        + '	* type "floatatom"\n'
-                        + '	* position 318 437\n'
-                    )
-                }
-                if (nodeId === "n_0_22" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_22" portletId "0"\n'
-                        + '	* type "tgl"\n'
-                        + '	* position 365 517\n'
-                    )
-                }
-                if (nodeId === "n_0_24" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_24" portletId "0"\n'
-                        + '	* type "msg"\n'
-                        + '	* position 366 494\n'
-                    )
-                }
-                if (nodeId === "n_0_25" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_25" portletId "0"\n'
-                        + '	* type "msg"\n'
-                        + '	* position 367 437\n'
-                    )
-                }
-                if (nodeId === "n_0_26" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_26" portletId "0"\n'
-                        + '	* type "floatatom"\n'
-                        + '	* position 373 206\n'
-                    )
-                }
-                if (nodeId === "n_0_27" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_27" portletId "0"\n'
-                        + '	* type "floatatom"\n'
-                        + '	* position 594 497\n'
-                    )
-                }
-                if (nodeId === "n_0_28" && portletId === "0") {
-                    console.log('Message received from :\n'
-                        + '	* nodeId "n_0_28" portletId "0"\n'
-                        + '	* type "msg"\n'
-                        + '	* position 49 683\n'
-                    )
-                }                
             }
-
         </script>
     </body>
 </html>
