@@ -163,8 +163,8 @@
                 { id: 'lfoFreq',     nodeId: 'n_0_18', min: 0.5,  max: 3,   step: 0.05,  value: 1,     scale: 1,   decimals: 2, unit: ' Hz' },
                 // Gains show 0–1 but are scaled by 0.5, so the patch only ever gets 0–0.5.
                 // Dry + delayed can then never exceed full scale (no clipping).
-                { id: 'feedforward', nodeId: 'n_0_27', min: 0,    max: 1,   step: 0.01,  value: 0.8,   scale: 0.5, decimals: 2, unit: '' },
-                { id: 'blend',       nodeId: 'n_0_26', min: 0,    max: 1,   step: 0.01,  value: 0.8,   scale: 0.5, decimals: 2, unit: '' },
+                { id: 'feedforward', nodeId: 'n_0_27', min: 0,    max: 1,   step: 0.01,  value: 0.5,   scale: 0.5, decimals: 2, unit: '' },
+                { id: 'blend',       nodeId: 'n_0_26', min: 0,    max: 1,   step: 0.01,  value: 0.5,   scale: 0.5, decimals: 2, unit: '' },
             ]
             const PLAY_NODE = 'n_0_2'        // bang that plays voice_sample.wav
             const LFO_TOGGLE_NODE = 'n_0_22' // toggle that starts/stops the LFO
